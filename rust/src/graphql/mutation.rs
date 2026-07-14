@@ -307,8 +307,14 @@ pub async fn run_mempool(context: Context) -> anyhow::Result<()> {
                 match msg {
                     MempoolMsg::TxId(tx) => {
                         let txid = tx.txid;
+                        tracing::info!("MP3 {txid}");
                         let all_notes = tx.notes;
                         for item in tx.amounts {
+                            tracing::info!(
+                                account = %item.account,
+                                value = %item.value,
+                                "tx.item"
+                            );
                             let (account, value) = (item.account, item.value);
                             let notes: Vec<UnconfirmedNote> = all_notes
                                 .iter()
@@ -333,9 +339,11 @@ pub async fn run_mempool(context: Context) -> anyhow::Result<()> {
                             }
                             {
                                 let account = account as i32;
+                                tracing::info!("sending EventType::Tx 338 {txid}");
                                 let ss = SUBS.lock().await;
                                 if let Some(subs) = ss.get(&account) {
                                     for s in subs {
+                                        tracing::info!("sending EventType::Tx {txid}");
                                         let _ = s
                                             .send(Ok(Event {
                                                 r#type: EventType::Tx,

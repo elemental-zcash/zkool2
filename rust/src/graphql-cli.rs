@@ -13,6 +13,9 @@ use rlz::graphql::mutation::run_mempool;
 use rlz::graphql::{mutation::Mutation, query::Query, subs::Subscription, Context};
 use serde::{Deserialize, Serialize};
 use warp::Filter;
+use juniper::{EmptyMutation, EmptySubscription};
+use juniper::{introspect, IntrospectionFormat};
+use std::fs;
 
 type Schema = RootNode<Query, Mutation, Subscription>;
 
@@ -110,6 +113,12 @@ async fn main() -> Result<()> {
     }
 
     let schema = Schema::new(Query {}, Mutation {}, Subscription {});
+
+    let sdl = schema.as_sdl();
+    fs::write("schema.graphql", sdl).expect("Unable to write schema file");
+    // let (res, _errors) = introspect(&schema, &context, IntrospectionFormat::default()).unwrap();
+    // let json = serde_json::to_string_pretty(&res).unwrap();
+    // fs::write("schema.json", json).expect("Unable to write schema file");
 
     let ctx = context.clone();
     let dk = Arc::clone(&decoding_key); // For HTTP

@@ -129,6 +129,7 @@ pub async fn run_mempool_impl<S: Sink<MempoolMsg> + Send + 'static>(
                                     value: values.iter().sum(),
                                 })
                                 .collect::<Vec<_>>();
+                            tracing::info!("mempool_tx {tx_hash}");
                             mempool_tx.send(MempoolMsg::TxId(MempoolTx {
                                 txid: tx_hash,
                                 amounts,
