@@ -23,12 +23,10 @@ jobs:
       - id: release
         uses: googleapis/release-please-action@v5
         with:
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
       - if: steps.release.outputs.pr
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         run: |
           BRANCH="release-please--branches--main--components--zkool"
           git fetch origin "$BRANCH"
@@ -40,4 +38,4 @@ jobs:
           echo "$NEW_BUILD" > build_number.txt
           git add build_number.txt
           git commit --amend --no-edit
-          git push --force "https://x-access-token:$(gh auth token)@github.com/$GITHUB_REPOSITORY" "$BRANCH"
+          git push --force origin "$BRANCH"
