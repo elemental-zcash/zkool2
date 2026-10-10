@@ -181,3 +181,78 @@ pub async fn store_pending_tx(
 pub fn parse_payment_uri(uri: &str) -> Option<Vec<Recipient>> {
     crate::pay::prepare::parse_payment_uri(uri).ok()
 }
+
+/// Native review flow: software accounts only, with the same planner as GraphQL.
+/// Keep database and network access inside the core instead of exporting Coin internals.
+pub async fn prepare_software_payment(
+    recipient: Recipient,
+    source_pools: u8,
+    deduct_fee: bool,
+    confirmations: u32,
+    c: &Coin,
+) -> Result<PcztPackage> {
+    let mask = crate::pay::pool::PoolMask::from_address(&recipient.address)?;
+    anyhow::ensure!(
+        mask.0 != 1 || recipient.user_memo.as_ref().is_none_or(|m| m.is_empty()),
+        "Transparent addresses cannot receive a memo"
+    );
+    let mut connection = c.get_connection().await?;
+    anyhow::ensure!(
+        crate::db::get_account_hw(&mut connection, c.account).await? == 0,
+        "Hardware signing is not supported in this native proof of concept"
+    );
+    let mut client = c.client().await?;
+    plan_transaction(
+        &c.network(),
+        &mut connection,
+        &mut client,
+        c.account,
+        source_pools,
+        &[recipient],
+        deduct_fee,
+        Some(confirmations),
+        false,
+        None,
+        None,
+        false,
+        None,
+        None,
+    )
+    .await
+}
+
+/// Returns the broadcast ID even if local tracking fails; callers must not resend it.
+pub async fn submit_software_payment(
+    package: &PcztPackage,
+    c: &Coin,
+) -> Result<(String, Option<String>)> {
+    let signed = sign_transaction(package, c).await?;
+    let bytes = extract_transaction(&signed).await?;
+    let mut client = c.client().await?;
+    let height = client.latest_height().await?;
+    let txid = crate::pay::send(&mut client, height, &bytes).await.map_err(|e|
+        anyhow::anyhow!("Broadcast could not be confirmed: {e}. Check transaction history before sending again"))?;
+    let mut connection = c.get_connection().await?;
+    let warning = crate::pay::lock_spent_notes(&mut connection, c.account, &bytes).await.err()
+        .map(|e| format!("Payment broadcast, but local spent-note tracking failed: {e}. Sync before another payment"));
+    Ok((txid, warning))
+}
+
+/// Unspent, unlocked ZEC notes at the requested confirmation cutoff, before fees.
+pub async fn spendable_pools(height: u32, confirmations: u32, c: &Coin) -> Result<Vec<u64>> {
+    let mut connection = c.get_connection().await?;
+    let pools = crate::pay::plan::fetch_unspent_notes_by_pool(&mut connection, c.account).await?;
+    let cutoff = height.saturating_sub(confirmations);
+    pools
+        .into_iter()
+        .map(|notes| {
+            notes
+                .into_iter()
+                .filter(|n| n.height <= cutoff && n.asset_base == [0u8; 32])
+                .try_fold(0u64, |sum, note| {
+                    sum.checked_add(note.amount)
+                        .ok_or_else(|| anyhow::anyhow!("Spendable balance overflow"))
+                })
+        })
+        .collect()
+}

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "graphql")]
 use warp::reject::Reject;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -11,6 +12,7 @@ pub struct Claims {
 #[derive(Debug)]
 pub struct AuthError;
 
+#[cfg(feature = "graphql")]
 impl Reject for AuthError {}
 
 impl std::fmt::Display for AuthError {

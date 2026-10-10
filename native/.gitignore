@@ -1,0 +1,5 @@
+ios/Generated/
+ios/Frameworks/
+ios/*.xcodeproj/
+ios/build/
+__pycache__/

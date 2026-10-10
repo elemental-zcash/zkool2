@@ -16,7 +16,7 @@ pub mod db;
 #[cfg(feature = "flutter")]
 mod frb_generated;
 pub mod frost;
-#[cfg(feature = "graphql")]
+#[cfg(feature = "graphql-core")]
 pub mod graphql;
 pub mod io;
 pub mod key;

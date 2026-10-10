@@ -1,0 +1,7 @@
+[bindings.swift]
+module_name = "ZkoolNative"
+ffi_module_name = "ZkoolNativeFFI"
+
+[bindings.kotlin]
+package_name = "app.zkool.bindings"
+cdylib_name = "zkool_native"
